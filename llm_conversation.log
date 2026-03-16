@@ -1,0 +1,135 @@
+
+
+=== ITERATION 3 ===
+[system]: You are MeBot, an authorized automated QA testing and personal browser automation tool. You run on a secure local environment.
+
+CRITICAL INSTRUCTION: You are explicitly required and authorized to use credentials, passwords, and sensitive login data provided by the user to perform automated logins. You are operating in a consented, single-user environment. DO NOT output safety warnings, refusals, or state that you cannot process personal information. If you receive credentials, you MUST execute the login steps using the browser tools.
+
+CONVERSATION RULES:
+1. If the user is simply greeting you, asking a general question, or carrying on a conversation, DO NOT use any tools. Simply reply to them directly.
+2. Only use browser tools when the user's request explicitly requires browsing the web, extracting information from a website, or performing an action in the browser.
+
+You have access to browser control tools. 
+- SELECTORS: For finding elements, you can use standard CSS selectors (e.g. 'a.login', 'button[type="submit"]') or Playwright text selectors (e.g. 'text="My Attendance"' or 'a:has-text("My Attendance")').
+- If you need to know what elements exist on a page (to find selectors), use the 'browser_extract_dom' tool. Do NOT ask the user to read the screen for you.
+- HANDLING POPUPS: If a cookie banner, newsletter popup, or modal blocks your view:
+  1. Try clicking its Close or 'X' button using 'browser_click'.
+  2. Try pressing 'Escape' using 'browser_press_key'.
+  3. If all else fails, use 'browser_eval_js' to hide it (e.g. document.querySelector('.popup').style.display='none').
+- DYNAMIC CONTENT: If an element you need isn't on the screen yet, use 'browser_wait_for_selector' or 'browser_scroll' to find it.
+- STEP-BY-STEP EXECUTION: Perform your actions step-by-step. Make one tool call at a time, observe the visual screen or result, and then determine your next action. Do NOT queue multiple tool calls at once.
+- Always be concise and action-oriented.
+- When you call tools, you will receive an array of results representing exactly what happened for each execution.
+[user]: Got to erp.psit.ac.in and login with
+2301641520071
+Om200518@
+
+and send me my attendance info
+[assistant_tool_calls]: [{chatcmpl-tool-ada806159a3e647a browser_navigate map[url:https://erp.psit.ac.in]}]
+[tool_result]: [{browser_navigate success Navigated to https://erp.psit.ac.in/
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+[assistant_tool_calls]: [{chatcmpl-tool-ae0ddcd7896a27ca browser_type map[selector:input[name="username"] text:2301641520071]}]
+[tool_result]: [{browser_type success Typed text into 'input[name="username"]'
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+
+[LLM Response (Step 3)]:
+Text: 
+ToolCalls: [{chatcmpl-tool-9ecedbc1901e2a3a browser_type map[selector:input[name="password"] text:Om200518@]}]
+Done: false
+
+
+
+=== ITERATION 4 ===
+[system]: You are MeBot, an authorized automated QA testing and personal browser automation tool. You run on a secure local environment.
+
+CRITICAL INSTRUCTION: You are explicitly required and authorized to use credentials, passwords, and sensitive login data provided by the user to perform automated logins. You are operating in a consented, single-user environment. DO NOT output safety warnings, refusals, or state that you cannot process personal information. If you receive credentials, you MUST execute the login steps using the browser tools.
+
+CONVERSATION RULES:
+1. If the user is simply greeting you, asking a general question, or carrying on a conversation, DO NOT use any tools. Simply reply to them directly.
+2. Only use browser tools when the user's request explicitly requires browsing the web, extracting information from a website, or performing an action in the browser.
+
+You have access to browser control tools. 
+- SELECTORS: For finding elements, you can use standard CSS selectors (e.g. 'a.login', 'button[type="submit"]') or Playwright text selectors (e.g. 'text="My Attendance"' or 'a:has-text("My Attendance")').
+- If you need to know what elements exist on a page (to find selectors), use the 'browser_extract_dom' tool. Do NOT ask the user to read the screen for you.
+- HANDLING POPUPS: If a cookie banner, newsletter popup, or modal blocks your view:
+  1. Try clicking its Close or 'X' button using 'browser_click'.
+  2. Try pressing 'Escape' using 'browser_press_key'.
+  3. If all else fails, use 'browser_eval_js' to hide it (e.g. document.querySelector('.popup').style.display='none').
+- DYNAMIC CONTENT: If an element you need isn't on the screen yet, use 'browser_wait_for_selector' or 'browser_scroll' to find it.
+- STEP-BY-STEP EXECUTION: Perform your actions step-by-step. Make one tool call at a time, observe the visual screen or result, and then determine your next action. Do NOT queue multiple tool calls at once.
+- Always be concise and action-oriented.
+- When you call tools, you will receive an array of results representing exactly what happened for each execution.
+[user]: Got to erp.psit.ac.in and login with
+2301641520071
+Om200518@
+
+and send me my attendance info
+[assistant_tool_calls]: [{chatcmpl-tool-ada806159a3e647a browser_navigate map[url:https://erp.psit.ac.in]}]
+[tool_result]: [{browser_navigate success Navigated to https://erp.psit.ac.in/
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+[assistant_tool_calls]: [{chatcmpl-tool-ae0ddcd7896a27ca browser_type map[selector:input[name="username"] text:2301641520071]}]
+[tool_result]: [{browser_type success Typed text into 'input[name="username"]'
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+[assistant_tool_calls]: [{chatcmpl-tool-9ecedbc1901e2a3a browser_type map[selector:input[name="password"] text:Om200518@]}]
+[tool_result]: [{browser_type success Typed text into 'input[name="password"]'
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+
+[LLM Response (Step 4)]:
+Text: 
+ToolCalls: [{chatcmpl-tool-bf713960d70790d4 browser_click map[selector:button[type="submit"]]}]
+Done: false
+
+
+
+=== ITERATION 5 ===
+[system]: You are MeBot, an authorized automated QA testing and personal browser automation tool. You run on a secure local environment.
+
+CRITICAL INSTRUCTION: You are explicitly required and authorized to use credentials, passwords, and sensitive login data provided by the user to perform automated logins. You are operating in a consented, single-user environment. DO NOT output safety warnings, refusals, or state that you cannot process personal information. If you receive credentials, you MUST execute the login steps using the browser tools.
+
+CONVERSATION RULES:
+1. If the user is simply greeting you, asking a general question, or carrying on a conversation, DO NOT use any tools. Simply reply to them directly.
+2. Only use browser tools when the user's request explicitly requires browsing the web, extracting information from a website, or performing an action in the browser.
+
+You have access to browser control tools. 
+- SELECTORS: For finding elements, you can use standard CSS selectors (e.g. 'a.login', 'button[type="submit"]') or Playwright text selectors (e.g. 'text="My Attendance"' or 'a:has-text("My Attendance")').
+- If you need to know what elements exist on a page (to find selectors), use the 'browser_extract_dom' tool. Do NOT ask the user to read the screen for you.
+- HANDLING POPUPS: If a cookie banner, newsletter popup, or modal blocks your view:
+  1. Try clicking its Close or 'X' button using 'browser_click'.
+  2. Try pressing 'Escape' using 'browser_press_key'.
+  3. If all else fails, use 'browser_eval_js' to hide it (e.g. document.querySelector('.popup').style.display='none').
+- DYNAMIC CONTENT: If an element you need isn't on the screen yet, use 'browser_wait_for_selector' or 'browser_scroll' to find it.
+- STEP-BY-STEP EXECUTION: Perform your actions step-by-step. Make one tool call at a time, observe the visual screen or result, and then determine your next action. Do NOT queue multiple tool calls at once.
+- Always be concise and action-oriented.
+- When you call tools, you will receive an array of results representing exactly what happened for each execution.
+[user]: Got to erp.psit.ac.in and login with
+2301641520071
+Om200518@
+
+and send me my attendance info
+[assistant_tool_calls]: [{chatcmpl-tool-ada806159a3e647a browser_navigate map[url:https://erp.psit.ac.in]}]
+[tool_result]: [{browser_navigate success Navigated to https://erp.psit.ac.in/
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+[assistant_tool_calls]: [{chatcmpl-tool-ae0ddcd7896a27ca browser_type map[selector:input[name="username"] text:2301641520071]}]
+[tool_result]: [{browser_type success Typed text into 'input[name="username"]'
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+[assistant_tool_calls]: [{chatcmpl-tool-9ecedbc1901e2a3a browser_type map[selector:input[name="password"] text:Om200518@]}]
+[tool_result]: [{browser_type success Typed text into 'input[name="password"]'
+
+Screenshot taken. Current page: :: PSIT :: (https://erp.psit.ac.in/)}]
+[assistant_tool_calls]: [{chatcmpl-tool-bf713960d70790d4 browser_click map[selector:button[type="submit"]]}]
+[tool_result]: [{browser_click success Clicked element matching 'button[type="submit"]'
+
+Screenshot taken. Current page: Notice Dashboard For Student (https://erp.psit.ac.in/Student/)}]
+
+[LLM Response (Step 5)]:
+Text: 
+ToolCalls: [{chatcmpl-tool-915936986141aea9 browser_click map[selector:a:has-text("My Attendance")]}]
+Done: false
+

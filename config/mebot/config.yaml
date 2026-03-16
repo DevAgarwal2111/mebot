@@ -1,0 +1,4 @@
+llm_api_key: AIzaSyCz-i7_Hwm8WbYZJ0V0ioqzr4ijHkpZjSo
+llm_provider: ollama
+model: llama3.1
+MEBOT_PORT: 8081
