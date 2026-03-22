@@ -25,6 +25,7 @@ type Config struct {
 	MaxHistoryMessages int      `yaml:"max_history_messages"`
 	GoogleClientID     string   `yaml:"google_client_id"`
 	GoogleClientSecret string   `yaml:"google_client_secret"`
+	TavilyAPIKey       string   `yaml:"tavily_api_key"`
 }
 
 // DefaultConfig returns a config with sensible defaults.
@@ -110,6 +111,9 @@ func Load() (*Config, error) {
 	}
 	if endpoint := os.Getenv("OLLAMA_ENDPOINT"); endpoint != "" {
 		cfg.OllamaEndpoint = endpoint
+	}
+	if tavilyKey := os.Getenv("TAVILY_API_KEY"); tavilyKey != "" {
+		cfg.TavilyAPIKey = tavilyKey
 	}
 	if maxHist := os.Getenv("MEBOT_MAX_HISTORY"); maxHist != "" {
 		if m, err := strconv.Atoi(maxHist); err == nil {

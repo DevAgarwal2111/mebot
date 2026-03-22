@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, User, Bot, Wrench, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Send, User, Bot, Wrench, AlertCircle, CheckCircle2, Plus, Trash2, BookOpen, X, ChevronRight } from 'lucide-react';
 import './index.css';
 
 // Types
@@ -17,6 +17,31 @@ interface ToolCall {
   result?: string;
 }
 
+interface SkillData {
+  name: string;
+  description: string;
+  triggers: string[];
+  cron: string;
+  content: string;
+  is_builtin: boolean;
+}
+
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:8085`;
+
+const SKILL_TEMPLATE = `---
+name: my_skill_name
+description: What this skill does
+triggers:
+  - "keyword1"
+  - "keyword2"
+---
+
+# Skill Instructions
+
+Write the instructions for the bot here. This content gets injected into the
+conversation when the trigger keywords match the user's message.
+`;
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [toolCalls, setToolCalls] = useState<{ [id: string]: ToolCall }>({});
@@ -24,6 +49,14 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Skill Manager State
+  const [showSkillPanel, setShowSkillPanel] = useState(false);
+  const [skills, setSkills] = useState<SkillData[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newSkillName, setNewSkillName] = useState('');
+  const [newSkillContent, setNewSkillContent] = useState(SKILL_TEMPLATE);
+  const [skillError, setSkillError] = useState('');
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -44,9 +77,68 @@ export default function App() {
     };
   }, []);
 
+  // Load skills when panel opens
+  useEffect(() => {
+    if (showSkillPanel) {
+      fetchSkills();
+    }
+  }, [showSkillPanel]);
+
+  const fetchSkills = async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/skills`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setSkills(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch skills:', err);
+    }
+  };
+
+  const createSkill = async () => {
+    setSkillError('');
+    if (!newSkillName.trim() || !newSkillContent.trim()) {
+      setSkillError('Name and content are required');
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/skills`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newSkillName.trim(), content: newSkillContent }),
+      });
+
+      if (resp.ok) {
+        setShowCreateForm(false);
+        setNewSkillName('');
+        setNewSkillContent(SKILL_TEMPLATE);
+        fetchSkills();
+      } else {
+        const text = await resp.text();
+        setSkillError(text || 'Failed to create skill');
+      }
+    } catch (err) {
+      setSkillError('Network error');
+    }
+  };
+
+  const deleteSkill = async (name: string) => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/skills/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+      });
+      if (resp.ok) {
+        fetchSkills();
+      }
+    } catch (err) {
+      console.error('Failed to delete skill:', err);
+    }
+  };
+
   const connectWebSocket = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // For local dev, we default to 8080 if not running from the Go server directly
     const wsUrl = `${protocol}//${window.location.hostname}:8085/ws`;
 
     console.log('Connecting to', wsUrl);
@@ -60,7 +152,6 @@ export default function App() {
     ws.onclose = () => {
       setIsConnected(false);
       setIsProcessing(false);
-      // Try to reconnect after 3 seconds
       setTimeout(connectWebSocket, 3000);
     };
 
@@ -140,13 +231,9 @@ export default function App() {
     const trimmed = inputTitle.trim();
     if (!trimmed || !isConnected || isProcessing) return;
 
-    // Add user message to UI
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: trimmed }]);
-
-    // Clear tool calls from previous turn
     setToolCalls({});
 
-    // Send over WS
     if (wsRef.current) {
       setIsProcessing(true);
       wsRef.current.send(JSON.stringify({
@@ -155,7 +242,6 @@ export default function App() {
       }));
     }
 
-    // Reset input
     setInputTitle('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -171,18 +257,27 @@ export default function App() {
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputTitle(e.target.value);
-    // Auto-resize textarea
     e.target.style.height = 'auto';
     e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
   };
 
   return (
     <div className="app-container">
-      <div className="chat-panel">
-        {/* Connection Badge */}
-        <div className={`connection-badge ${isConnected ? 'connected' : 'disconnected'}`}>
-          <div className="badge-dot"></div>
-          {isConnected ? 'Connected' : 'Reconnecting...'}
+      <div className={`chat-panel ${showSkillPanel ? 'with-sidebar' : ''}`}>
+        {/* Header Bar */}
+        <div className="header-bar">
+          <div className={`connection-badge ${isConnected ? 'connected' : 'disconnected'}`}>
+            <div className="badge-dot"></div>
+            {isConnected ? 'Connected' : 'Reconnecting...'}
+          </div>
+          <button
+            className={`skills-toggle ${showSkillPanel ? 'active' : ''}`}
+            onClick={() => setShowSkillPanel(!showSkillPanel)}
+            title="Skill Manager"
+          >
+            <BookOpen size={18} />
+            Skills
+          </button>
         </div>
 
         {/* Message List */}
@@ -190,7 +285,7 @@ export default function App() {
           {messages.length === 0 && (
             <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
               <h2>🤖 MeBot</h2>
-              <p>Your personal AI assistant.</p>
+              <p>Your personal AI assistant with skills.</p>
             </div>
           )}
 
@@ -219,7 +314,7 @@ export default function App() {
             );
           })}
 
-          {/* Render Active Tool Calls after all messages */}
+          {/* Active Tool Calls */}
           {Object.values(toolCalls).map((tc) => (
             <div key={tc.id} className="tool-card">
               <div className="tool-header">
@@ -234,16 +329,10 @@ export default function App() {
               {tc.result && (
                 <div className={`tool-result ${tc.status}`}>
                   {(() => {
-                    // Check if the result contains a base64 image (specifically attached by browser tools)
-                    // The backend appends: "\n\nScreenshot taken... (URL)\n<base64>" OR just plain text
-                    // Our tools output "Screenshot... \n\niVBOR..." 
-                    // Let's do a simple heuristic: if it contains a really long base64 string
-                    // we'll split it and render the text + the image.
                     let textParts = tc.result.split('\n\n');
                     let base64Img = '';
                     let cleanText = tc.result;
 
-                    // If the last part is a huge block of base64 (no spaces, very long)
                     if (textParts.length > 1) {
                       const possibleBase64 = textParts[textParts.length - 1].trim();
                       if (possibleBase64.length > 1000 && !possibleBase64.includes(' ')) {
@@ -304,6 +393,83 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Skill Manager Sidebar */}
+      {showSkillPanel && (
+        <div className="skill-panel">
+          <div className="skill-panel-header">
+            <h3><BookOpen size={18} /> Skills</h3>
+            <div className="skill-panel-actions">
+              <button className="skill-add-btn" onClick={() => { setShowCreateForm(true); setSkillError(''); }}>
+                <Plus size={16} /> Add
+              </button>
+              <button className="skill-close-btn" onClick={() => setShowSkillPanel(false)}>
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Create Form */}
+          {showCreateForm && (
+            <div className="skill-create-form">
+              <input
+                type="text"
+                placeholder="Skill name (e.g. morning_routine)"
+                value={newSkillName}
+                onChange={(e) => setNewSkillName(e.target.value)}
+                className="skill-name-input"
+              />
+              <textarea
+                value={newSkillContent}
+                onChange={(e) => setNewSkillContent(e.target.value)}
+                className="skill-content-textarea"
+                rows={12}
+              />
+              {skillError && <div className="skill-error">{skillError}</div>}
+              <div className="skill-form-actions">
+                <button className="skill-save-btn" onClick={createSkill}>Save Skill</button>
+                <button className="skill-cancel-btn" onClick={() => setShowCreateForm(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Skill List */}
+          <div className="skill-list">
+            {skills.length === 0 && !showCreateForm && (
+              <div className="skill-empty">
+                <p>No skills loaded yet.</p>
+                <p style={{ fontSize: '12px' }}>Skills are auto-created by the bot or added manually.</p>
+              </div>
+            )}
+            {skills.map((skill) => (
+              <div key={skill.name} className="skill-card">
+                <div className="skill-card-header">
+                  <div className="skill-card-title">
+                    <ChevronRight size={14} />
+                    <span>{skill.name}</span>
+                    {skill.is_builtin && <span className="skill-badge builtin">built-in</span>}
+                    {!skill.is_builtin && <span className="skill-badge user">user</span>}
+                  </div>
+                  {!skill.is_builtin && (
+                    <button className="skill-delete-btn" onClick={() => deleteSkill(skill.name)} title="Delete skill">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                {skill.description && <p className="skill-desc">{skill.description}</p>}
+                {skill.triggers && skill.triggers.length > 0 && (
+                  <div className="skill-triggers">
+                    {skill.triggers.map((t, i) => (
+                      <span key={i} className="skill-trigger-tag">{t}</span>
+                    ))}
+                  </div>
+                )}
+                {skill.cron && <div className="skill-cron">⏰ {skill.cron}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

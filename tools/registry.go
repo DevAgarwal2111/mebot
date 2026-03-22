@@ -3,7 +3,9 @@ package tools
 import (
 	"fmt"
 	"log"
+	"strings"
 
+	"mebot/skills"
 	"mebot/types"
 )
 
@@ -58,14 +60,80 @@ func (r *Registry) GetDeclarations() []*types.ToolDeclaration {
 	return decls
 }
 
+// ToolSummary is a lightweight description of a tool for the system prompt.
+type ToolSummary struct {
+	Name        string
+	Description string
+	Category    string
+}
+
+// GetToolSummaries returns a summary of all registered tools grouped by category.
+func (r *Registry) GetToolSummaries() []ToolSummary {
+	var summaries []ToolSummary
+	for _, t := range r.tools {
+		decl := t.Declaration()
+		category := categorize(decl.Name)
+		summaries = append(summaries, ToolSummary{
+			Name:        decl.Name,
+			Description: decl.Description,
+			Category:    category,
+		})
+	}
+	return summaries
+}
+
+// categorize derives a tool category from its name prefix.
+func categorize(name string) string {
+	switch {
+	case strings.HasPrefix(name, "google_calendar"):
+		return "Google Calendar"
+	case strings.HasPrefix(name, "google_gmail"):
+		return "Gmail"
+	case strings.HasPrefix(name, "browser_"):
+		return "Browser Automation"
+	case strings.HasPrefix(name, "run_command"):
+		return "System"
+	case strings.HasPrefix(name, "web_"):
+		return "Web"
+	case strings.Contains(name, "skill"):
+		return "Skills & Memory"
+	case strings.Contains(name, "reminder"):
+		return "Reminders"
+	case name == "read_file" || name == "write_file" || name == "list_directory":
+		return "File System (Self-Modification)"
+	default:
+		return "Utility"
+	}
+}
+
 // RegisterDefaults adds all built-in tools.
-func (r *Registry) RegisterDefaults() {
+func (r *Registry) RegisterDefaults(router *skills.Router, tavilyAPIKey string, broadcast func(types.WSEvent)) {
 	r.Register(&GetCurrentTimeTool{})
 	r.Register(&WebRequestTool{})
+
+	// Search
+	r.Register(&WebSearchTool{APIKey: tavilyAPIKey})
 
 	// Google API Tools
 	r.Register(&GoogleCalendarListEventsTool{})
 	r.Register(&GoogleCalendarCreateEventTool{})
 	r.Register(&GoogleGmailListUnreadTool{})
 	r.Register(&GoogleGmailSendEmailTool{})
+
+	// Command Execution
+	r.Register(&RunCommandTool{})
+
+	// Async Reminders
+	r.Register(&SetReminderTool{Broadcast: broadcast})
+
+	// Skill Management Tools
+	r.Register(&CreateSkillTool{Router: router})
+	r.Register(&UpdateSkillTool{Router: router})
+	r.Register(&ListSkillsTool{Router: router})
+	r.Register(&DeleteSkillTool{Router: router})
+
+	// File System Tools (for self-modification and code editing)
+	r.Register(&ReadFileTool{})
+	r.Register(&WriteFileTool{})
+	r.Register(&ListDirectoryTool{})
 }

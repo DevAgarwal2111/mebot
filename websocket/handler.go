@@ -23,12 +23,36 @@ var upgrader = websocket.Upgrader{
 
 // Handler manages WebSocket connections.
 type Handler struct {
-	engine *engine.Engine
+	engine      *engine.Engine
+	connections map[*websocket.Conn]bool
+	mu          sync.Mutex
 }
 
 // NewHandler creates a new WebSocket handler.
 func NewHandler(eng *engine.Engine) *Handler {
-	return &Handler{engine: eng}
+	return &Handler{
+		engine:      eng,
+		connections: make(map[*websocket.Conn]bool),
+	}
+}
+
+// Broadcast sends an event to all connected clients.
+func (h *Handler) Broadcast(event types.WSEvent) {
+	data, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("[WS] Broadcast marshal error: %v", err)
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for conn := range h.connections {
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			log.Printf("[WS] Broadcast write error: %v", err)
+			conn.Close()
+			delete(h.connections, conn)
+		}
+	}
 }
 
 // ServeWS handles the /ws endpoint.
@@ -38,22 +62,33 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[WS] Upgrade error: %v", err)
 		return
 	}
-	defer conn.Close()
+
+	h.mu.Lock()
+	h.connections[conn] = true
+	h.mu.Unlock()
+
+	defer func() {
+		h.mu.Lock()
+		delete(h.connections, conn)
+		h.mu.Unlock()
+		conn.Close()
+	}()
 
 	log.Println("[WS] Client connected")
 
 	// Send session start
-	writeMu := &sync.Mutex{}
 	sendEvent := func(event types.WSEvent) {
 		data, err := json.Marshal(event)
 		if err != nil {
 			log.Printf("[WS] Marshal error: %v", err)
 			return
 		}
-		writeMu.Lock()
-		defer writeMu.Unlock()
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			log.Printf("[WS] Write error: %v", err)
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if _, ok := h.connections[conn]; ok {
+			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				log.Printf("[WS] Write error: %v", err)
+			}
 		}
 	}
 

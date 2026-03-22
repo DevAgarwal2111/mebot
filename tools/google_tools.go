@@ -2,9 +2,38 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"mebot/api/google"
 	"mebot/types"
+	"strings"
 )
+
+// googleAuthErrorResult checks if an error is an auth error and returns a
+// user-friendly tool result prompting the user to connect their Google account.
+// Returns nil if the error is not auth-related.
+func googleAuthErrorResult(err error, serviceName string) *types.ToolResult {
+	if err == nil {
+		return nil
+	}
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "authentication required") || strings.Contains(errMsg, "not configured") {
+		authURL := google.GetAuthURL()
+		var msg string
+		if authURL != "" {
+			msg = fmt.Sprintf(
+				"🔐 Google account not connected yet! To use %s, please connect your Google account by visiting this link:\n\n%s\n\nAfter authorizing, try your request again.",
+				serviceName, authURL,
+			)
+		} else {
+			msg = fmt.Sprintf(
+				"🔐 Google API is not configured. To use %s, please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file and restart the server.",
+				serviceName,
+			)
+		}
+		return &types.ToolResult{Status: "error", Output: msg}
+	}
+	return nil
+}
 
 // ---- google_calendar_list_events ----
 
@@ -29,6 +58,9 @@ func (t *GoogleCalendarListEventsTool) Declaration() *types.ToolDeclaration {
 func (t *GoogleCalendarListEventsTool) Execute(args map[string]any) types.ToolResult {
 	srv, err := google.NewCalendarService(context.Background())
 	if err != nil {
+		if authErr := googleAuthErrorResult(err, "Google Calendar"); authErr != nil {
+			return *authErr
+		}
 		return types.ToolResult{Status: "error", Output: "Failed to initialize Calendar API: " + err.Error()}
 	}
 
@@ -74,6 +106,9 @@ func (t *GoogleCalendarCreateEventTool) Execute(args map[string]any) types.ToolR
 
 	srv, err := google.NewCalendarService(context.Background())
 	if err != nil {
+		if authErr := googleAuthErrorResult(err, "Google Calendar"); authErr != nil {
+			return *authErr
+		}
 		return types.ToolResult{Status: "error", Output: "Failed to initialize Calendar API: " + err.Error()}
 	}
 
@@ -108,6 +143,9 @@ func (t *GoogleGmailListUnreadTool) Declaration() *types.ToolDeclaration {
 func (t *GoogleGmailListUnreadTool) Execute(args map[string]any) types.ToolResult {
 	srv, err := google.NewGmailService(context.Background())
 	if err != nil {
+		if authErr := googleAuthErrorResult(err, "Gmail"); authErr != nil {
+			return *authErr
+		}
 		return types.ToolResult{Status: "error", Output: "Failed to initialize Gmail API: " + err.Error()}
 	}
 
@@ -162,6 +200,9 @@ func (t *GoogleGmailSendEmailTool) Execute(args map[string]any) types.ToolResult
 
 	srv, err := google.NewGmailService(context.Background())
 	if err != nil {
+		if authErr := googleAuthErrorResult(err, "Gmail"); authErr != nil {
+			return *authErr
+		}
 		return types.ToolResult{Status: "error", Output: "Failed to initialize Gmail API: " + err.Error()}
 	}
 

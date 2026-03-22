@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
+	googleauth "mebot/api/google"
 	"mebot/config"
 	"mebot/llm"
+	"mebot/skills"
 	"mebot/tools"
 	"mebot/types"
 )
@@ -22,17 +24,37 @@ type Engine struct {
 	llmClient    llm.Provider
 	toolRegistry *tools.Registry
 	conversation *Conversation
+	skillRouter  *skills.Router
 }
 
-// NewEngine creates a new engine instance.
-func NewEngine(cfg *config.Config, llmClient llm.Provider, toolRegistry *tools.Registry) *Engine {
+// NewEngine creates a new engine instance with a dynamically built system prompt.
+func NewEngine(cfg *config.Config, llmClient llm.Provider, toolRegistry *tools.Registry, skillRouter *skills.Router) *Engine {
+	prompt := buildDynamicPrompt(toolRegistry, skillRouter)
+
 	return &Engine{
 		state:        types.StateIdle,
 		cfg:          cfg,
 		llmClient:    llmClient,
 		toolRegistry: toolRegistry,
-		conversation: NewConversation(),
+		conversation: NewConversation(prompt),
+		skillRouter:  skillRouter,
 	}
+}
+
+// buildDynamicPrompt assembles the system prompt from current runtime state.
+func buildDynamicPrompt(toolRegistry *tools.Registry, skillRouter *skills.Router) string {
+	toolSummaries := toolRegistry.GetToolSummaries()
+
+	var allSkills []*skills.Skill
+	if skillRouter != nil {
+		allSkills = skillRouter.GetLoader().GetAll()
+	}
+
+	integrations := map[string]string{
+		"Google (Gmail & Calendar)": googleauth.GetStatus(),
+	}
+
+	return BuildSystemPrompt(toolSummaries, allSkills, integrations)
 }
 
 // HandleMessage processes a user message through the agentic loop.
@@ -59,6 +81,43 @@ func (e *Engine) HandleMessage(ctx context.Context, userMsg string, sendEvent fu
 	// Send "thinking" to frontend
 	sendEvent(types.WSEvent{Type: "thinking", Content: "Processing your request..."})
 
+	// === SKILL ROUTING ===
+	// Match relevant skills for this message and inject into conversation context
+	if e.skillRouter != nil {
+		matchedSkills := e.skillRouter.Route(userMsg)
+
+		// Check if we have a user identity — if not, inject onboarding instructions
+		_, hasIdentity := e.skillRouter.GetLoader().Get("user_identity")
+		var extraContext string
+		if !hasIdentity {
+			extraContext = `
+[ONBOARDING - FIRST MEETING]
+You have NOT met this user before. This is your first interaction.
+1. Introduce yourself warmly — ask the user what they'd like to call you (your bot name)
+2. Ask for their name
+3. Ask about any preferences (timezone, communication style, etc.)
+4. Once you have this info, IMMEDIATELY save it using the 'create_skill' tool with:
+   - name: "user_identity"
+   - description: "Core identity and user information"
+   - triggers: (leave empty — this skill is loaded for context, not triggered)
+   - content: Include the bot's chosen name, the user's name, and any preferences they mention
+This is CRITICAL — do not skip this step. The user_identity skill is your persistent memory.
+`
+		}
+
+		skillPrompt := e.skillRouter.FormatForPrompt(matchedSkills)
+		if extraContext != "" {
+			skillPrompt = extraContext + skillPrompt
+		}
+
+		if skillPrompt != "" {
+			e.conversation.SetSkillContext(skillPrompt)
+			log.Printf("[Engine] Injected %d skills for this turn (identity: %v)", len(matchedSkills), hasIdentity)
+		} else {
+			e.conversation.SetSkillContext("")
+		}
+	}
+
 	// Create a timeout context for the entire loop
 	loopCtx, cancel := context.WithTimeout(ctx, time.Duration(e.cfg.ToolTimeoutSecs*e.cfg.MaxToolIterations)*time.Second)
 	defer cancel()
@@ -73,36 +132,6 @@ func (e *Engine) HandleMessage(ctx context.Context, userMsg string, sendEvent fu
 			sendEvent(types.WSEvent{Type: "error", Content: "Request timed out"})
 			return
 		}
-
-		// === CONTEXT COMPRESSION CHECK (DISABLED PER REQUEST) ===
-		// if e.conversation.IsHistoryTooLong(e.cfg.MaxHistoryMessages) {
-		// 	sendEvent(types.WSEvent{Type: "thinking", Content: "Context limit reached. Summarizing history to save tokens..."})
-
-		// 	summaryCtx, cancelSum := context.WithTimeout(context.Background(), 30*time.Second)
-
-		// 	// Extract messages to summarize
-		// 	msgsToSummarize := e.conversation.GetMessages()
-		// 	// Append a prompt asking to summarize everything
-		// 	msgsToSummarize = append(msgsToSummarize, types.Message{
-		// 		Role:    "user",
-		// 		Content: "Please write a concise summary of our progress so far, including my main goals and the important facts you've learned. Omit unnecessary details.",
-		// 	})
-
-		// 	log.Printf("[Engine] Triggering history compression (current length: %d)", len(msgsToSummarize))
-
-		// 	// Send without tools so it just returns a text summary
-		// 	sumResp, err := e.llmClient.SendMessage(summaryCtx, msgsToSummarize, nil)
-		// 	cancelSum()
-
-		// 	if err != nil {
-		// 		log.Printf("[Engine] Failed to summarize history: %v", err)
-		// 		// We won't block execution, but we'll log it
-		// 	} else if sumResp != nil && sumResp.Text != "" {
-		// 		// Keep the last 4 messages (usually the latest user prompt and some tool results) so it isn't completely blind
-		// 		e.conversation.CompressHistory(sumResp.Text, 4)
-		// 		sendEvent(types.WSEvent{Type: "assistant", Content: "(Context history compressed.)"})
-		// 	}
-		// }
 
 		// Send conversation to LLM
 		e.setState(types.StateAwaitingLLM)
@@ -224,8 +253,9 @@ func (e *Engine) setState(state types.EngineState) {
 	log.Printf("[Engine] State → %s", state)
 }
 
-// ResetConversation clears the conversation history.
+// ResetConversation clears the conversation history and rebuilds the system prompt.
 func (e *Engine) ResetConversation() {
-	e.conversation.Reset()
-	log.Println("[Engine] Conversation reset")
+	prompt := buildDynamicPrompt(e.toolRegistry, e.skillRouter)
+	e.conversation = NewConversation(prompt)
+	log.Println("[Engine] Conversation reset with fresh dynamic prompt")
 }

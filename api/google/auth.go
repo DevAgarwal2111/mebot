@@ -107,3 +107,24 @@ func HandleCallback(code string) (*oauth2.Token, error) {
 	err = SaveToken(tokenCache, tok)
 	return tok, err
 }
+
+// IsAuthenticated checks if Google OAuth is fully configured and a valid token exists.
+func IsAuthenticated() bool {
+	if oauthConfig == nil {
+		return false
+	}
+	_, err := tokenFromFile(tokenCache)
+	return err == nil
+}
+
+// GetStatus returns a human-readable integration status for the system prompt.
+// Returns one of: "connected", "needs_auth: <url>", or "not_configured".
+func GetStatus() string {
+	if oauthConfig == nil {
+		return "not_configured"
+	}
+	if IsAuthenticated() {
+		return "connected"
+	}
+	return fmt.Sprintf("needs_auth: %s", GetAuthURL())
+}
