@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"mebot/types"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 // Screenshot explicitly takes a screenshot and returns it.

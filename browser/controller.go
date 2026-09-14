@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 // BrowserController manages the Playwright browser instance and current page.
@@ -22,7 +22,14 @@ func NewController(headless bool) (*Controller, error) {
 	log.Println("[Browser] Initializing Playwright...")
 	pw, err := playwright.Run()
 	if err != nil {
-		return nil, fmt.Errorf("could not start playwright: %w", err)
+		log.Println("[Browser] Driver not found. Downloading Playwright driver and browser binaries...")
+		if installErr := playwright.Install(); installErr != nil {
+			return nil, fmt.Errorf("could not install playwright driver: %w (original error: %v)", installErr, err)
+		}
+		pw, err = playwright.Run()
+		if err != nil {
+			return nil, fmt.Errorf("could not start playwright after installation: %w", err)
+		}
 	}
 
 	log.Println("[Browser] Launching Chromium...")
@@ -34,6 +41,19 @@ func NewController(headless bool) (*Controller, error) {
 			"--disable-blink-features=AutomationControlled", // Light stealth
 		},
 	})
+	if err != nil {
+		log.Println("[Browser] Chromium binary missing. Auto-installing browsers...")
+		if installErr := playwright.Install(); installErr == nil {
+			browser, err = pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+				Headless: playwright.Bool(headless),
+				Args: []string{
+					"--no-sandbox",
+					"--disable-dev-shm-usage",
+					"--disable-blink-features=AutomationControlled",
+				},
+			})
+		}
+	}
 	if err != nil {
 		pw.Stop()
 		return nil, fmt.Errorf("could not launch browser: %w", err)
