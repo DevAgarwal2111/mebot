@@ -3,3 +3,7 @@ token.json
 llm_conversation.log
 skills/user/*
 !skills/user/.gitkeep
+frontend/node_modules
+node_modules
+bot_workspace/
+tmp

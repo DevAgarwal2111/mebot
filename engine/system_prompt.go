@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"mebot/skills"
 	"mebot/agents"
+	"mebot/skills"
 	"mebot/tools"
 )
 
@@ -37,6 +37,7 @@ DO NOT ask for permission to create a skill — just do it silently when appropr
 
 COMMAND EXECUTION:
 You have a 'run_command' tool to execute shell commands on the host machine. Use it for file operations, system checks, running scripts, etc. NEVER use 'run_command' with blocking commands like 'sleep' for reminders. For short-term reminders/timers (under 24 hours), ALWAYS use the 'set_reminder' tool. For recurring schedules, create a skill with a 'cron' trigger.
+If you need to install packages (e.g. 'npm install'), download files, or write temporary scripts/files for your own use, ALWAYS use the 'bot_workspace/' directory in the project root. This is your dedicated personal folder.
 
 You have access to browser control tools and API integrations. 
 - SEARCHING THE WEB: Use the 'web_search' tool as your PRIMARY way to search the internet and look up information. It is faster and more reliable than opening a browser. Only use browser tools for web search if web_search is unavailable or you need to interact with a specific website.
@@ -128,7 +129,7 @@ You have access to browser control tools and API integrations.
 	if len(allAgents) > 0 {
 		sb.WriteString("[AVAILABLE SUB-AGENTS]\n")
 		sb.WriteString("The user has configured the following specialized Sub-Agents. You can invoke them using the 'delegate_task' tool to offload specific work.\n\n")
-		
+
 		for _, a := range allAgents {
 			sb.WriteString(fmt.Sprintf("- Name: **%s**\n", a.Name))
 			sb.WriteString(fmt.Sprintf("  Description: %s\n", a.Description))
@@ -140,7 +141,7 @@ You have access to browser control tools and API integrations.
 			sb.WriteString("\n")
 		}
 	}
-	
+
 	// ===== SECTION 5: Self-Modification Capabilities =====
 	cwd, _ := os.Getwd()
 	sb.WriteString("[SELF-MODIFICATION — YOUR OWN CODEBASE]\n")
@@ -153,6 +154,7 @@ IMPORTANT FILE EXPLORATION RULE:
 ALWAYS use the 'list_directory', 'read_file', and 'write_file' tools to explore and modify your codebase. Do NOT use 'run_command' for file exploring (like 'ls' or 'cat'), as cross-platform paths often break.
 
 PROJECT STRUCTURE:
+  bot_workspace/             — Your dedicated personal folder for arbitrary files, npm packages, or scripts
   main.go                    — Entry point, HTTP routes, initialization
   config/config.go           — Configuration loading from .env
   engine/engine.go           — Core agentic loop (LLM ↔ tools)

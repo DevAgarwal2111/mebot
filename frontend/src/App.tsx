@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, User, Bot, Wrench, AlertCircle, CheckCircle2, MessageSquare, Cpu, Trash2, X, Plus, Paperclip } from 'lucide-react';
+import MarkdownRenderer from './MarkdownRenderer';
 import './index.css';
 
 // --- Types ---
@@ -61,7 +62,7 @@ export default function App() {
   const [toolCalls, setToolCalls] = useState<{ [id: string]: ToolCall }>({});
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<ContentPart[]>([]);
-  
+
   // Connection / Run State
   const [isConnected, setIsConnected] = useState(false);
   const [statusText, setStatusText] = useState('');
@@ -117,7 +118,7 @@ export default function App() {
     };
 
     ws.onmessage = (event) => {
-      try { handleWSEvent(JSON.parse(event.data)); } 
+      try { handleWSEvent(JSON.parse(event.data)); }
       catch (err) { console.error('WS Parse Error:', err); }
     };
 
@@ -168,11 +169,11 @@ export default function App() {
     const trimmed = inputText.trim();
     if ((!trimmed && attachments.length === 0) || !isConnected || isProcessing) return;
 
-    setMessages(prev => [...prev, { 
-      id: Date.now().toString(), 
-      role: 'user', 
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: 'user',
       content: trimmed,
-      attachments: attachments.map(a => ({...a}))
+      attachments: attachments.map(a => ({ ...a }))
     }]);
     setToolCalls({});
 
@@ -299,22 +300,22 @@ export default function App() {
                 <button className="btn-primary" style={{ width: '100%' }} onClick={() => setShowCreateSkill(true)}><Plus size={16} /> New Memory / Skill</button>
               ) : (
                 <div className="glass-card">
-                  <div style={{display:'flex', justifyContent:'space-between'}}><h3>Create Skill</h3><X size={18} style={{cursor:'pointer'}} onClick={()=>setShowCreateSkill(false)} /></div>
-                  {skillError && <div style={{color:'var(--danger)', fontSize:'0.8rem'}}>{skillError}</div>}
-                  <input className="glass-input" placeholder="Skill Name (e.g., wifi_password)" value={newSkillName} onChange={e=>setNewSkillName(e.target.value)} />
-                  <textarea className="glass-textarea" value={newSkillContent} onChange={e=>setNewSkillContent(e.target.value)} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><h3>Create Skill</h3><X size={18} style={{ cursor: 'pointer' }} onClick={() => setShowCreateSkill(false)} /></div>
+                  {skillError && <div style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{skillError}</div>}
+                  <input className="glass-input" placeholder="Skill Name (e.g., wifi_password)" value={newSkillName} onChange={e => setNewSkillName(e.target.value)} />
+                  <textarea className="glass-textarea" value={newSkillContent} onChange={e => setNewSkillContent(e.target.value)} />
                   <div className="form-actions"><button className="btn-primary" onClick={createSkill}>Save Skill</button></div>
                 </div>
               )}
               {skills.map(skill => (
                 <div className="glass-card" key={skill.name}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <strong style={{color:'var(--accent)'}}>{skill.name}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: 'var(--accent)' }}>{skill.name}</strong>
                     {!skill.is_builtin && <button className="btn-danger" onClick={() => deleteSkill(skill.name)}><Trash2 size={14} /></button>}
                   </div>
-                  <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>{skill.description || 'No description'}</div>
-                  {skill.cron && <div style={{fontSize:'0.75rem', color:'#a78bfa', marginTop:'4px'}}>⏰ {skill.cron}</div>}
-                  {skill.triggers?.length > 0 && <div style={{fontSize:'0.75rem', color:'var(--text-secondary)', marginTop:'4px'}}>Triggers: {skill.triggers.join(', ')}</div>}
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{skill.description || 'No description'}</div>
+                  {skill.cron && <div style={{ fontSize: '0.75rem', color: '#a78bfa', marginTop: '4px' }}>⏰ {skill.cron}</div>}
+                  {skill.triggers?.length > 0 && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Triggers: {skill.triggers.join(', ')}</div>}
                 </div>
               ))}
             </>
@@ -327,29 +328,29 @@ export default function App() {
                 <button className="btn-primary" style={{ width: '100%' }} onClick={() => setShowCreateAgent(true)}><Plus size={16} /> New Sub-Agent</button>
               ) : (
                 <div className="glass-card">
-                  <div style={{display:'flex', justifyContent:'space-between'}}><h3>Create Sub-Agent</h3><X size={18} style={{cursor:'pointer'}} onClick={()=>setShowCreateAgent(false)} /></div>
-                  {agentError && <div style={{color:'var(--danger)', fontSize:'0.8rem'}}>{agentError}</div>}
-                  <input className="glass-input" placeholder="Name (e.g. Code Reviewer)" value={agentForm.name} onChange={e=>setAgentForm({...agentForm, name: e.target.value})} />
-                  <input className="glass-input" placeholder="Description" value={agentForm.description} onChange={e=>setAgentForm({...agentForm, description: e.target.value})} />
-                  <select className="glass-select" value={agentForm.provider} onChange={e=>setAgentForm({...agentForm, provider: e.target.value})}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><h3>Create Sub-Agent</h3><X size={18} style={{ cursor: 'pointer' }} onClick={() => setShowCreateAgent(false)} /></div>
+                  {agentError && <div style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{agentError}</div>}
+                  <input className="glass-input" placeholder="Name (e.g. Code Reviewer)" value={agentForm.name} onChange={e => setAgentForm({ ...agentForm, name: e.target.value })} />
+                  <input className="glass-input" placeholder="Description" value={agentForm.description} onChange={e => setAgentForm({ ...agentForm, description: e.target.value })} />
+                  <select className="glass-select" value={agentForm.provider} onChange={e => setAgentForm({ ...agentForm, provider: e.target.value })}>
                     <option value="openrouter">OpenRouter</option>
                     <option value="nvidia">Nvidia NIM</option>
                     <option value="gemini">Gemini API</option>
                     <option value="ollama">Ollama (Local)</option>
                   </select>
-                  <input className="glass-input" placeholder="Model ID (e.g. anthropic/claude-3.5-sonnet)" value={agentForm.model} onChange={e=>setAgentForm({...agentForm, model: e.target.value})} />
-                  <textarea className="glass-textarea" placeholder="Optional Prompt Prefix (e.g. You are an expert...)" value={agentForm.prompt} onChange={e=>setAgentForm({...agentForm, prompt: e.target.value})} />
+                  <input className="glass-input" placeholder="Model ID (e.g. anthropic/claude-3.5-sonnet)" value={agentForm.model} onChange={e => setAgentForm({ ...agentForm, model: e.target.value })} />
+                  <textarea className="glass-textarea" placeholder="Optional Prompt Prefix (e.g. You are an expert...)" value={agentForm.prompt} onChange={e => setAgentForm({ ...agentForm, prompt: e.target.value })} />
                   <div className="form-actions"><button className="btn-primary" onClick={createAgent}>Save Agent</button></div>
                 </div>
               )}
               {agents.map(agent => (
                 <div className="glass-card" key={agent.id}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <strong style={{color:'#60a5fa'}}>{agent.name}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: '#60a5fa' }}>{agent.name}</strong>
                     <button className="btn-danger" onClick={() => deleteAgent(agent.id)}><Trash2 size={14} /></button>
                   </div>
-                  <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>{agent.provider} • {agent.model}</div>
-                  <div style={{fontSize:'0.85rem', marginTop:'4px'}}>{agent.description}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{agent.provider} • {agent.model}</div>
+                  <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>{agent.description}</div>
                 </div>
               ))}
             </>
@@ -358,10 +359,10 @@ export default function App() {
           {/* Info Tab */}
           {activeTab === 'info' && (
             <div className="glass-card">
-              <h3 style={{color:'var(--text-primary)'}}>System Overview</h3>
-              <p style={{fontSize:'0.85rem', color:'var(--text-secondary)', marginTop:'8px', lineHeight:'1.5'}}>
-                MeBot is a fully agentic orchestration engine.<br/><br/>
-                • <strong>Skills:</strong> Long-term logic and memory injected into the system prompt based on triggers.<br/>
+              <h3 style={{ color: 'var(--text-primary)' }}>System Overview</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.5' }}>
+                MeBot is a fully agentic orchestration engine.<br /><br />
+                • <strong>Skills:</strong> Long-term logic and memory injected into the system prompt based on triggers.<br />
                 • <strong>Agents:</strong> Symmetrical LLM orchestration. Use the @mention system or natural language to ask the primary bot to delegate tasks to OpenRouter, Nvidia, or Ollama models natively.
               </p>
             </div>
@@ -376,7 +377,7 @@ export default function App() {
             <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></div>
             {isConnected ? 'Sync Active' : 'Connecting...'}
           </div>
-          <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>End-to-End Encrypted Logic</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>End-to-End Encrypted Logic</div>
         </header>
 
         <div className="messages-area">
@@ -396,14 +397,18 @@ export default function App() {
                 <div className="avatar-box">
                   {msg.role === 'user' ? <User size={20} color="#fff" /> : <Bot size={20} color="#c9d1d9" />}
                 </div>
-                <div className="bubble-content">
-                  {msg.content && <div>{msg.content}</div>}
+                <div className={`bubble-content ${msg.role === 'assistant' ? 'markdown-bubble' : ''}`}>
+                  {msg.content && (
+                    msg.role === 'assistant'
+                      ? <MarkdownRenderer content={msg.content} />
+                      : <div>{msg.content}</div>
+                  )}
                   {msg.attachments && msg.attachments.length > 0 && (
-                    <div style={{display:'flex', flexDirection:'column', gap:'8px', marginTop:'12px'}}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
                       {msg.attachments.map((att, i) => (
-                        att.type === 'image_url' ? 
+                        att.type === 'image_url' ?
                           <img key={i} src={att.data} alt="attachment" className="bubble-image" />
-                        : <div key={i} className="glass-card" style={{padding:'8px', display:'inline-block', width:'fit-content'}}>📄 {att.mime_type}</div>
+                          : <div key={i} className="glass-card" style={{ padding: '8px', display: 'inline-block', width: 'fit-content' }}>📄 {att.mime_type}</div>
                       ))}
                     </div>
                   )}
@@ -476,7 +481,7 @@ export default function App() {
               ))}
             </div>
           )}
-          
+
           <div className="input-container">
             <textarea
               ref={textareaRef}
@@ -489,17 +494,17 @@ export default function App() {
               rows={1}
             />
             <div className="input-actions">
-              <div style={{display:'flex', gap:'8px'}}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="file" id="file-upload" multiple style={{ display: 'none' }} onChange={handleFileChange} />
-                <label htmlFor="file-upload" className="action-btn" title="Attach file or image" style={{cursor:'pointer'}}>
+                <label htmlFor="file-upload" className="action-btn" title="Attach file or image" style={{ cursor: 'pointer' }}>
                   <Paperclip size={18} />
                 </label>
               </div>
-              <div style={{display:'flex', gap:'8px'}}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 {isProcessing && (
-                  <button 
-                    className="send-btn" 
-                    style={{ backgroundColor: 'var(--danger)' }} 
+                  <button
+                    className="send-btn"
+                    style={{ backgroundColor: 'var(--danger)' }}
                     onClick={() => {
                       if (wsRef.current) wsRef.current.send(JSON.stringify({ type: 'cancel_run' }));
                       setIsProcessing(false);
@@ -509,9 +514,9 @@ export default function App() {
                     <X size={16} /> Stop
                   </button>
                 )}
-                <button 
-                  className="send-btn" 
-                  onClick={sendMessage} 
+                <button
+                  className="send-btn"
+                  onClick={sendMessage}
                   disabled={(!inputText.trim() && attachments.length === 0) || !isConnected || isProcessing}
                 >
                   <Send size={16} /> Send
