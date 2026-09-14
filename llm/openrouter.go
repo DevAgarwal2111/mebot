@@ -22,6 +22,12 @@ type OpenRouterProvider struct {
 
 // NewOpenRouterProvider initializes an OpenRouter client round-robin cluster.
 func NewOpenRouterProvider(apiKeys []string, model string) (*OpenRouterProvider, error) {
+	return NewOpenAICompatibleProvider(apiKeys, "https://openrouter.ai/api/v1", model)
+}
+
+// NewOpenAICompatibleProvider creates a provider for APIs that implement the
+// OpenAI chat-completions contract, such as OpenRouter and Foundry v1.
+func NewOpenAICompatibleProvider(apiKeys []string, baseURL string, model string) (*OpenRouterProvider, error) {
 	if len(apiKeys) == 0 {
 		return nil, fmt.Errorf("no API keys provided")
 	}
@@ -32,7 +38,7 @@ func NewOpenRouterProvider(apiKeys []string, model string) (*OpenRouterProvider,
 			continue
 		}
 		cfg := openai.DefaultConfig(key)
-		cfg.BaseURL = "https://openrouter.ai/api/v1"
+		cfg.BaseURL = baseURL
 
 		// Optional: OpenRouter recommended headers
 		// (Not fully supported cleanly by default go-openai without custom HTTP client transport, but default works)

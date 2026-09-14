@@ -48,18 +48,7 @@ func main() {
 	log.Println("Browser controller initialized")
 
 	// Initialize LLM client
-	var llmClient llm.Provider
-	if cfg.LLMProvider == "openrouter" {
-		llmClient, err = llm.NewOpenRouterProvider(cfg.OpenRouterAPIKeys, cfg.Model)
-	} else if cfg.LLMProvider == "scraper" {
-		llmClient, err = llm.NewScraperProvider(ctrl)
-	} else if cfg.LLMProvider == "ollama" {
-		llmClient, err = llm.NewOllamaProvider(cfg.OllamaEndpoint, cfg.Model)
-	} else if cfg.LLMProvider == "nvidia" {
-		llmClient, err = llm.NewNvidiaProvider(cfg.NvidiaAPIKeys, cfg.Model)
-	} else {
-		llmClient, err = llm.NewGeminiProvider(cfg.GeminiAPIKeys, cfg.Model)
-	}
+	llmClient, err := llm.NewProvider(cfg, ctrl)
 
 	if err != nil {
 		log.Fatalf("Failed to create %s LLM provider: %v", cfg.LLMProvider, err)

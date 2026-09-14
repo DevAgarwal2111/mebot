@@ -16,6 +16,8 @@ type Config struct {
 	NvidiaAPIKeys      []string `yaml:"nvidia_api_keys"`
 	GeminiAPIKeys      []string `yaml:"llm_api_keys"`
 	OpenRouterAPIKeys  []string `yaml:"openrouter_api_keys"`
+	FoundryEndpoint    string   `yaml:"foundry_endpoint"`
+	FoundryAPIKey      string   `yaml:"foundry_api_key"`
 	Model              string   `yaml:"llm_model"`
 	Port               int      `yaml:"port"`
 	MaxToolIterations  int      `yaml:"max_tool_iterations"`
@@ -94,6 +96,12 @@ func Load() (*Config, error) {
 			cfg.NvidiaAPIKeys = []string{key}
 		}
 	}
+	if endpoint := os.Getenv("FOUNDRY_ENDPOINT"); endpoint != "" {
+		cfg.FoundryEndpoint = endpoint
+	}
+	if key := os.Getenv("FOUNDRY_API_KEY"); key != "" {
+		cfg.FoundryAPIKey = key
+	}
 
 	if model := os.Getenv("MEBOT_MODEL"); model != "" {
 		cfg.Model = model
@@ -130,6 +138,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.LLMProvider == "nvidia" && len(cfg.NvidiaAPIKeys) == 0 {
 		return nil, fmt.Errorf("NVIDIA_API_KEYS or NVIDIA_API_KEY is required in .env for nvidia provider")
+	}
+	if cfg.LLMProvider == "foundry" && (cfg.FoundryEndpoint == "" || cfg.FoundryAPIKey == "") {
+		return nil, fmt.Errorf("FOUNDRY_ENDPOINT and FOUNDRY_API_KEY are required in .env for foundry provider")
 	}
 
 	return cfg, nil
