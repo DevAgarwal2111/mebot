@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"mebot/config"
 	"mebot/llm"
 	"mebot/skills"
+	"mebot/agents"
 	"mebot/tools"
 	"mebot/types"
 )
@@ -25,11 +27,13 @@ type Engine struct {
 	toolRegistry *tools.Registry
 	conversation *Conversation
 	skillRouter  *skills.Router
+	agentLoader  *agents.Loader
+	activeCancel context.CancelFunc
 }
 
 // NewEngine creates a new engine instance with a dynamically built system prompt.
-func NewEngine(cfg *config.Config, llmClient llm.Provider, toolRegistry *tools.Registry, skillRouter *skills.Router) *Engine {
-	prompt := buildDynamicPrompt(toolRegistry, skillRouter)
+func NewEngine(cfg *config.Config, llmClient llm.Provider, toolRegistry *tools.Registry, skillRouter *skills.Router, agentLoader *agents.Loader) *Engine {
+	prompt := buildDynamicPrompt(toolRegistry, skillRouter, agentLoader)
 
 	return &Engine{
 		state:        types.StateIdle,
@@ -38,11 +42,12 @@ func NewEngine(cfg *config.Config, llmClient llm.Provider, toolRegistry *tools.R
 		toolRegistry: toolRegistry,
 		conversation: NewConversation(prompt),
 		skillRouter:  skillRouter,
+		agentLoader:  agentLoader,
 	}
 }
 
 // buildDynamicPrompt assembles the system prompt from current runtime state.
-func buildDynamicPrompt(toolRegistry *tools.Registry, skillRouter *skills.Router) string {
+func buildDynamicPrompt(toolRegistry *tools.Registry, skillRouter *skills.Router, agentLoader *agents.Loader) string {
 	toolSummaries := toolRegistry.GetToolSummaries()
 
 	var allSkills []*skills.Skill
@@ -50,16 +55,31 @@ func buildDynamicPrompt(toolRegistry *tools.Registry, skillRouter *skills.Router
 		allSkills = skillRouter.GetLoader().GetAll()
 	}
 
+	var allAgents []*agents.Agent
+	if agentLoader != nil {
+		allAgents = agentLoader.GetAll()
+	}
+
 	integrations := map[string]string{
 		"Google (Gmail & Calendar)": googleauth.GetStatus(),
 	}
 
-	return BuildSystemPrompt(toolSummaries, allSkills, integrations)
+	return BuildSystemPrompt(toolSummaries, allSkills, allAgents, integrations)
+}
+
+// CancelActiveRun aborts the running HandleMessage loop if active.
+func (e *Engine) CancelActiveRun() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.activeCancel != nil {
+		e.activeCancel()
+		log.Println("[Engine] Active run cancelled by user")
+	}
 }
 
 // HandleMessage processes a user message through the agentic loop.
 // It sends events via the provided callback as the loop progresses.
-func (e *Engine) HandleMessage(ctx context.Context, userMsg string, sendEvent func(types.WSEvent)) {
+func (e *Engine) HandleMessage(ctx context.Context, userMsg string, attachments []types.ContentPart, sendEvent func(types.WSEvent)) {
 	e.mu.Lock()
 	if e.state != types.StateIdle {
 		e.mu.Unlock()
@@ -67,16 +87,23 @@ func (e *Engine) HandleMessage(ctx context.Context, userMsg string, sendEvent fu
 		return
 	}
 	e.state = types.StateSending
+
+	runCtx, runCancel := context.WithCancel(ctx)
+	e.activeCancel = runCancel
 	e.mu.Unlock()
 
 	defer func() {
 		e.mu.Lock()
+		if e.activeCancel != nil {
+			e.activeCancel()
+			e.activeCancel = nil
+		}
 		e.state = types.StateIdle
 		e.mu.Unlock()
 	}()
 
 	// Add user message to conversation
-	e.conversation.AddUserMessage(userMsg)
+	e.conversation.AddUserMessage(userMsg, attachments)
 
 	// Send "thinking" to frontend
 	sendEvent(types.WSEvent{Type: "thinking", Content: "Processing your request..."})
@@ -119,7 +146,7 @@ This is CRITICAL — do not skip this step. The user_identity skill is your pers
 	}
 
 	// Create a timeout context for the entire loop
-	loopCtx, cancel := context.WithTimeout(ctx, time.Duration(e.cfg.ToolTimeoutSecs*e.cfg.MaxToolIterations)*time.Second)
+	loopCtx, cancel := context.WithTimeout(runCtx, time.Duration(e.cfg.ToolTimeoutSecs*e.cfg.MaxToolIterations)*time.Second)
 	defer cancel()
 
 	// Get tool declarations
@@ -129,7 +156,11 @@ This is CRITICAL — do not skip this step. The user_identity skill is your pers
 	for iteration := 0; iteration < e.cfg.MaxToolIterations; iteration++ {
 		// Check context
 		if loopCtx.Err() != nil {
-			sendEvent(types.WSEvent{Type: "error", Content: "Request timed out"})
+			msg := "Request timed out"
+			if errors.Is(loopCtx.Err(), context.Canceled) {
+				msg = "Request cancelled by user"
+			}
+			sendEvent(types.WSEvent{Type: "error", Content: msg})
 			return
 		}
 
@@ -255,7 +286,7 @@ func (e *Engine) setState(state types.EngineState) {
 
 // ResetConversation clears the conversation history and rebuilds the system prompt.
 func (e *Engine) ResetConversation() {
-	prompt := buildDynamicPrompt(e.toolRegistry, e.skillRouter)
+	prompt := buildDynamicPrompt(e.toolRegistry, e.skillRouter, e.agentLoader)
 	e.conversation = NewConversation(prompt)
 	log.Println("[Engine] Conversation reset with fresh dynamic prompt")
 }

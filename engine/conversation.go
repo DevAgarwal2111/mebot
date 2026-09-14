@@ -29,10 +29,20 @@ func (c *Conversation) SetSkillContext(skillPrompt string) {
 }
 
 // AddUserMessage appends a user message.
-func (c *Conversation) AddUserMessage(text string) {
+func (c *Conversation) AddUserMessage(text string, attachments []types.ContentPart) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.messages = append(c.messages, types.Message{Role: "user", Content: text})
+	
+	if len(attachments) == 0 {
+		c.messages = append(c.messages, types.Message{Role: "user", Content: text})
+	} else {
+		var parts []types.ContentPart
+		if text != "" {
+			parts = append(parts, types.ContentPart{Type: "text", Text: text})
+		}
+		parts = append(parts, attachments...)
+		c.messages = append(c.messages, types.Message{Role: "user", Content: parts})
+	}
 }
 
 // AddAssistantMessage appends an assistant text response.

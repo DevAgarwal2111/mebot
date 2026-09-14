@@ -120,13 +120,18 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 				sendEvent(types.WSEvent{Type: "error", Content: "Empty message"})
 				continue
 			}
-			log.Printf("[WS] User message: %s", msg.Content)
+			log.Printf("[WS] User message: %s (attachments: %d)", msg.Content, len(msg.Attachments))
 			// Run the engine in a goroutine so we don't block the read loop
-			go h.engine.HandleMessage(ctx, msg.Content, sendEvent)
+			go h.engine.HandleMessage(ctx, msg.Content, msg.Attachments, sendEvent)
 
 		case "reset":
 			h.engine.ResetConversation()
 			sendEvent(types.WSEvent{Type: "session_start", Content: "Conversation reset"})
+
+		case "cancel_run":
+			log.Println("[WS] Received cancel request from user")
+			h.engine.CancelActiveRun()
+			// The engine loop will exit and send its own event, but we can also send an ack.
 
 		case "ping":
 			sendEvent(types.WSEvent{Type: "pong"})

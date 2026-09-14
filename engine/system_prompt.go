@@ -7,12 +7,13 @@ import (
 	"strings"
 
 	"mebot/skills"
+	"mebot/agents"
 	"mebot/tools"
 )
 
 // BuildSystemPrompt dynamically assembles the system prompt based on runtime state:
 // available tools, loaded skills/memories, and integration statuses.
-func BuildSystemPrompt(toolSummaries []tools.ToolSummary, allSkills []*skills.Skill, integrations map[string]string) string {
+func BuildSystemPrompt(toolSummaries []tools.ToolSummary, allSkills []*skills.Skill, allAgents []*agents.Agent, integrations map[string]string) string {
 	var sb strings.Builder
 
 	// ===== SECTION 1: Core Identity & Rules =====
@@ -122,11 +123,28 @@ You have access to browser control tools and API integrations.
 		}
 		sb.WriteString("\n")
 	}
+
+	// ===== SECTION 4.5: Custom Sub-Agents =====
+	if len(allAgents) > 0 {
+		sb.WriteString("[AVAILABLE SUB-AGENTS]\n")
+		sb.WriteString("The user has configured the following specialized Sub-Agents. You can invoke them using the 'delegate_task' tool to offload specific work.\n\n")
+		
+		for _, a := range allAgents {
+			sb.WriteString(fmt.Sprintf("- Name: **%s**\n", a.Name))
+			sb.WriteString(fmt.Sprintf("  Description: %s\n", a.Description))
+			sb.WriteString(fmt.Sprintf("  Provider: %s\n", a.Provider))
+			sb.WriteString(fmt.Sprintf("  Model: %s\n", a.Model))
+			if a.Prompt != "" {
+				sb.WriteString(fmt.Sprintf("  Recommended Prompt Prefix: \"%s\"\n", a.Prompt))
+			}
+			sb.WriteString("\n")
+		}
+	}
 	
 	// ===== SECTION 5: Self-Modification Capabilities =====
 	cwd, _ := os.Getwd()
 	sb.WriteString("[SELF-MODIFICATION — YOUR OWN CODEBASE]\n")
-	sb.WriteString(fmt.Sprintf("You have the ability to read and modify your own source code. Your project is a Go backend + React frontend.\n"))
+	sb.WriteString("You have the ability to read and modify your own source code. Your project is a Go backend + React frontend.\n")
 	sb.WriteString(fmt.Sprintf("Host OS: %s\n", os.Getenv("OS"))) // Or runtime.GOOS if preferred
 	sb.WriteString(fmt.Sprintf("Absolute Project Root: %s\n\n", cwd))
 	sb.WriteString(`The server uses 'air' for hot-reloading — any .go file change automatically rebuilds and restarts the server.

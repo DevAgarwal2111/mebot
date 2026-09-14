@@ -1,0 +1,8 @@
+{
+  "id": "image_to_text",
+  "name": "Image to Text",
+  "description": "",
+  "provider": "nvidia",
+  "model": "kimi-k2.5",
+  "prompt": ""
+}

@@ -63,11 +63,46 @@ func (p *OpenRouterProvider) SendMessage(ctx context.Context, messages []types.M
 				Content: text,
 			})
 		case "user":
-			text, _ := msg.Content.(string)
-			oaiMessages = append(oaiMessages, openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: text,
-			})
+			if text, ok := msg.Content.(string); ok {
+				oaiMessages = append(oaiMessages, openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleUser,
+					Content: text,
+				})
+			} else if parts, ok := msg.Content.([]types.ContentPart); ok {
+				var multi []openai.ChatMessagePart
+				hasImage := false
+				var textBuf string
+
+				for _, p := range parts {
+					if p.Type == "text" || p.Type == "" {
+						multi = append(multi, openai.ChatMessagePart{
+							Type: openai.ChatMessagePartTypeText,
+							Text: p.Data,
+						})
+						textBuf += p.Data + "\n"
+					} else if p.Data != "" {
+						hasImage = true
+						multi = append(multi, openai.ChatMessagePart{
+							Type: openai.ChatMessagePartTypeImageURL,
+							ImageURL: &openai.ChatMessageImageURL{
+								URL: p.Data,
+							},
+						})
+					}
+				}
+
+				if hasImage {
+					oaiMessages = append(oaiMessages, openai.ChatCompletionMessage{
+						Role:         openai.ChatMessageRoleUser,
+						MultiContent: multi,
+					})
+				} else {
+					oaiMessages = append(oaiMessages, openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleUser,
+						Content: textBuf,
+					})
+				}
+			}
 		case "assistant":
 			text, ok := msg.Content.(string)
 			if ok && text != "" {

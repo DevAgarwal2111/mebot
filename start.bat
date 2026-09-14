@@ -1,0 +1,6 @@
+@echo off
+echo Starting MeBot Backend (air)...
+start cmd /k "air"
+
+echo Starting MeBot Frontend (npm run dev)...
+start cmd /k "cd frontend && npm run dev"

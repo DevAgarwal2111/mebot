@@ -32,7 +32,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		LLMProvider:        "gemini",
-		Model:              "gemini-2.5-flash",
+		Model:              "gemini-3.1-flash-lite",
 		Port:               8085,
 		MaxToolIterations:  100, // increased to allow many iterations
 		ToolTimeoutSecs:    30,

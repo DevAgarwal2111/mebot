@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"os"
 
+	"path/filepath"
+
+	"mebot/agents"
 	"mebot/api"
 	googleauth "mebot/api/google"
 	"mebot/browser"
@@ -75,6 +78,14 @@ func main() {
 	skillRouter := skills.NewRouter(skillLoader)
 	log.Println("Skill system initialized")
 
+	// Initialize agent loader
+	agentDir := filepath.Join(cfg.SessionDir, "agents")
+	agentLoader := agents.NewLoader(agentDir)
+	if err := agentLoader.LoadAll(); err != nil {
+		log.Printf("Warning: failed to load agents: %v", err)
+	}
+	log.Println("Agent system initialized")
+
 	// Create a broadcast closure to break the initialization circle between tools, engine, and websockets
 	var broadcastFunc func(types.WSEvent)
 	broadcast := func(e types.WSEvent) {
@@ -87,12 +98,12 @@ func main() {
 
 	// Initialize tool registry
 	toolRegistry := tools.NewRegistry()
-	toolRegistry.RegisterDefaults(skillRouter, cfg.TavilyAPIKey, broadcast)
+	toolRegistry.RegisterDefaults(skillRouter, cfg, broadcast)
 	tools.RegisterBrowserTools(toolRegistry, ctrl)
 	log.Println("Tool registry initialized")
 
-	// Initialize engine (now with skill router)
-	eng := engine.NewEngine(cfg, llmClient, toolRegistry, skillRouter)
+	// Initialize engine (now with skill router and agent loader)
+	eng := engine.NewEngine(cfg, llmClient, toolRegistry, skillRouter, agentLoader)
 	log.Println("Engine initialized")
 
 	// Initialize Skill Scheduler (cron-based triggers)
@@ -123,6 +134,11 @@ func main() {
 	skillsAPI := api.NewSkillsAPI(skillRouter)
 	skillsAPI.RegisterRoutes()
 	log.Println("Skills REST API registered (/api/skills)")
+
+	// Agents REST API
+	agentsAPI := api.NewAgentsAPI(agentLoader)
+	agentsAPI.RegisterRoutes()
+	log.Println("Agents REST API registered (/api/agents)")
 
 	// Google OAuth: redirect to consent screen
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {

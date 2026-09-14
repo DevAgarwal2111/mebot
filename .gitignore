@@ -1,1 +1,5 @@
 .env
+token.json
+llm_conversation.log
+skills/user/*
+!skills/user/.gitkeep

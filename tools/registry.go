@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 
+	"mebot/config"
 	"mebot/skills"
 	"mebot/types"
 )
@@ -107,12 +108,12 @@ func categorize(name string) string {
 }
 
 // RegisterDefaults adds all built-in tools.
-func (r *Registry) RegisterDefaults(router *skills.Router, tavilyAPIKey string, broadcast func(types.WSEvent)) {
+func (r *Registry) RegisterDefaults(router *skills.Router, cfg *config.Config, broadcast func(types.WSEvent)) {
 	r.Register(&GetCurrentTimeTool{})
 	r.Register(&WebRequestTool{})
 
 	// Search
-	r.Register(&WebSearchTool{APIKey: tavilyAPIKey})
+	r.Register(&WebSearchTool{APIKey: cfg.TavilyAPIKey})
 
 	// Google API Tools
 	r.Register(&GoogleCalendarListEventsTool{})
@@ -136,4 +137,7 @@ func (r *Registry) RegisterDefaults(router *skills.Router, tavilyAPIKey string, 
 	r.Register(&ReadFileTool{})
 	r.Register(&WriteFileTool{})
 	r.Register(&ListDirectoryTool{})
+
+	// Multi-Agent Delegation
+	r.Register(&DelegateTaskTool{Config: cfg})
 }

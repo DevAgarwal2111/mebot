@@ -2,8 +2,10 @@ package llm
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"google.golang.org/genai"
@@ -66,11 +68,44 @@ func (c *GeminiProvider) SendMessage(ctx context.Context, messages []types.Messa
 				Role:  "user", // Gemini uses system instruction differently
 			}
 		case "user":
-			text, _ := msg.Content.(string)
-			contents = append(contents, &genai.Content{
-				Parts: []*genai.Part{genai.NewPartFromText(text)},
-				Role:  "user",
-			})
+			if text, ok := msg.Content.(string); ok {
+				contents = append(contents, &genai.Content{
+					Parts: []*genai.Part{genai.NewPartFromText(text)},
+					Role:  "user",
+				})
+			} else if parts, ok := msg.Content.([]types.ContentPart); ok {
+				var genaiParts []*genai.Part
+				for _, p := range parts {
+					if p.Type == "text" {
+						genaiParts = append(genaiParts, genai.NewPartFromText(p.Text))
+					} else if p.Data != "" {
+						dataStr := p.Data
+						// Remove 'data:image/jpeg;base64,' prefix if present
+						if idx := strings.Index(dataStr, ","); idx != -1 {
+							dataStr = dataStr[idx+1:]
+						}
+						decoded, err := base64.StdEncoding.DecodeString(dataStr)
+						if err == nil {
+							mime := p.MimeType
+							if mime == "" {
+								mime = "image/jpeg"
+							}
+							genaiParts = append(genaiParts, &genai.Part{
+								InlineData: &genai.Blob{
+									MIMEType: mime,
+									Data:     decoded,
+								},
+							})
+						} else {
+							log.Printf("[LLM] Failed to decode attachment base64: %v", err)
+						}
+					}
+				}
+				contents = append(contents, &genai.Content{
+					Parts: genaiParts,
+					Role:  "user",
+				})
+			}
 		case "assistant":
 			text, ok := msg.Content.(string)
 			if ok && text != "" {
@@ -93,6 +128,8 @@ func (c *GeminiProvider) SendMessage(ctx context.Context, messages []types.Messa
 						Name: tc.Name,
 						Args: tc.Args,
 					},
+					Thought:          tc.Thought,
+					ThoughtSignature: tc.ThoughtSignature,
 				})
 			}
 			contents = append(contents, &genai.Content{
@@ -178,9 +215,11 @@ func (c *GeminiProvider) parseResponse(resp *genai.GenerateContentResponse) (*ty
 		}
 		if part.FunctionCall != nil {
 			result.ToolCalls = append(result.ToolCalls, types.ToolCall{
-				ID:   part.FunctionCall.Name, // Gemini doesn't use separate IDs
-				Name: part.FunctionCall.Name,
-				Args: part.FunctionCall.Args,
+				ID:               part.FunctionCall.Name, // Gemini doesn't use separate IDs
+				Name:             part.FunctionCall.Name,
+				Args:             part.FunctionCall.Args,
+				Thought:          part.Thought,
+				ThoughtSignature: part.ThoughtSignature,
 			})
 			result.Done = false
 		}

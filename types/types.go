@@ -13,10 +13,18 @@ const (
 	StateError         EngineState = "error"
 )
 
+// ContentPart represents a chunk of multimodal content (text or file/image).
+type ContentPart struct {
+	Type     string `json:"type"`                // "text", "image_url", "file"
+	Text     string `json:"text,omitempty"`      // For text parts
+	MimeType string `json:"mime_type,omitempty"` // e.g. "image/jpeg"
+	Data     string `json:"data,omitempty"`      // base64 encoded string
+}
+
 // Message represents a conversation message.
 type Message struct {
-	Role    string      `json:"role"`    // "user", "assistant", "tool"
-	Content interface{} `json:"content"` // string or []ContentBlock
+	Role    string      `json:"role"`    // "user", "assistant", "system", "assistant_tool_calls", "tool_result"
+	Content interface{} `json:"content"` // string, []ContentPart, []ToolCall, or []ToolResult
 }
 
 // ToolCall represents a tool call requested by the LLM.
@@ -24,6 +32,9 @@ type ToolCall struct {
 	ID   string         `json:"id"`
 	Name string         `json:"name"`
 	Args map[string]any `json:"args"`
+	// Gemini 3.x thought signature fields (opaque, round-tripped as-is)
+	Thought          bool   `json:"thought,omitempty"`
+	ThoughtSignature []byte `json:"thought_signature,omitempty"`
 }
 
 // ToolResult represents the result of executing a tool.
